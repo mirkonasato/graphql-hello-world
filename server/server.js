@@ -1,6 +1,15 @@
-import { ApolloServer, gql } from 'apollo-server';
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@apollo/server/express4';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import bodyParser from 'body-parser';
 
-const typeDefs = gql`
+const app = express();
+const httpServer = http.createServer(app);
+
+const typeDefs = `#graphql
   schema {
     query: Query
   }
@@ -16,6 +25,20 @@ const resolvers = {
   },
 };
 
-const server = new ApolloServer({ typeDefs, resolvers });
-const { url } = await server.listen({ port: 9000 });
-console.log(`Server running at ${url}`);
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
+});
+
+await server.start();
+
+app.use(
+  '/',
+  cors(),
+  bodyParser.json({ limit: '50mb' }),
+  expressMiddleware(server,),
+);
+
+await new Promise((resolve) => httpServer.listen({ port: 9000 }, resolve));
+console.log(`🚀 Server ready at http://localhost:9000/`);
